@@ -1,0 +1,274 @@
+#include "thingProperties.h"
+const int BUZZER_PIN = 4;    
+const int redPin = 33;    
+const int greenPin = 32; 
+const int bluePin = 19; 
+const int GAS_SENSOR_PIN = 34;
+const int FLAME_SENSOR_PIN = 27;
+
+int gasSensorData = 0;
+bool gasAlert = false;
+bool fireAlert = false;
+
+int flameState = 0;  // Variable to store the sensor state
+
+const int relay_pin = 15;
+
+
+// bool smokeDetectionEnabled = true;
+
+void setup() {
+  Serial.begin(9600);
+  delay(1500);
+
+  initProperties();
+  ArduinoCloud.begin(ArduinoIoTPreferredConnection);
+  setDebugMessageLevel(2);
+  ArduinoCloud.printDebugInfo();
+
+  pinMode(BUZZER_PIN, OUTPUT);
+  pinMode(GAS_SENSOR_PIN, INPUT);
+  pinMode(27,INPUT);
+  pinMode(redPin, OUTPUT);
+  pinMode(greenPin, OUTPUT);
+  pinMode(bluePin, OUTPUT);
+  pinMode(relay_pin,OUTPUT);
+  digitalWrite(redPin, LOW);
+  digitalWrite(greenPin, LOW);
+  digitalWrite(bluePin, LOW);
+
+  digitalWrite(relay_pin,1);
+
+ 
+}
+
+void loop() {
+  ArduinoCloud.update();
+  // int flame = digitalRead(27);
+  // int gas_sensor= analogRead(34);
+  // Serial.print("flame :");
+  // Serial.print(flame);
+  // Serial.print("   Gas :");
+  // Serial.println(gas_sensor);
+  // if(flame == 0){
+  //   digitalWrite(relay_pin,1);
+  // }
+  // else {
+  //   digitalWrite(relay_pin,0);
+  // }
+
+  
+digitalWrite(relay_pin, 1);
+  
+  // GAS Sensor Detection
+  if (GasDetectionEnable == 1) {
+    gasSensorData = analogRead(GAS_SENSOR_PIN);
+    Serial.print("Gas Sensor Data: ");
+    Serial.print(gasSensorData);
+    Serial.print("  ");
+    GAS_Value = gasSensorData;
+    Serial.print("Flame Value: ");
+    Serial.println(digitalRead(FLAME_SENSOR_PIN));
+    
+    int flameState =  digitalRead(FLAME_SENSOR_PIN);
+
+//Gas true only
+    if (gasSensorData > 1000 && flameState == 1) {
+      // ArduinoCloud.update();
+      // Serial.println(gasSensorData);
+      gasAlert = true;
+      GASSiren();
+      redLED_Blink(10, 100);
+      digitalWrite(redPin, HIGH);
+      digitalWrite(greenPin, LOW);
+      digitalWrite(bluePin, LOW);
+      redLED_Blink(10, 100);
+      Serial.println("GAS LEAKED!!!");
+      message = " GAS LEAKED !!!";
+      ArduinoCloud.update(); // Ensure the message is sent immediately
+      
+    } else {
+      gasAlert = false;
+    }
+
+    if (gasAlert) {
+      delay(1000);
+      return;
+    }
+
+//gas trure && flame true
+     else if (gasSensorData >= 500 && flameState==0) {
+      // ArduinoCloud.update();
+      digitalWrite(relay_pin,0);
+      gasAlert = true;
+      GASSiren();
+      redLED_Blink(10, 200);
+      digitalWrite(redPin, HIGH);
+      digitalWrite(greenPin, LOW);
+      digitalWrite(bluePin, LOW);
+      redLED_Blink(10, 200);   
+      Serial.println("Flamed and Smoke Dected!!!");
+      message = " Flamed and Smoke Dected!!!";
+      ArduinoCloud.update(); // Ensure the message is sent immediately
+       
+    } else {
+      gasAlert = false;
+      digitalWrite(relay_pin,1);
+    }
+
+    if (gasAlert) {
+      delay(1000);
+      return;
+    }
+
+  // Flame Sensor Detection 
+    else if (digitalRead(FLAME_SENSOR_PIN) == 0) {
+    // ArduinoCloud.update();
+    fireAlert = true;
+    Serial.println("Flame detected!!!!!!");
+    message = " Flame Detected !!!";
+    digitalWrite(redPin, HIGH);
+    digitalWrite(greenPin, LOW);
+    digitalWrite(bluePin, LOW);
+    digitalWrite(relay_pin,0);
+    GASSiren() ;
+    // FireSiren_1();
+    ArduinoCloud.update(); // Ensure the message is sent immediately
+  } else {
+      delay(1000);
+    fireAlert = false;
+    digitalWrite(relay_pin,1);
+    // Serial.println("No flame detected.");
+  }
+
+  if (fireAlert) {
+    delay(1000); // Wait for 1 second before the next loop iteration
+    return;
+  }
+  ArduinoCloud.update();
+
+  
+    // ledcWriteTone(0, 0); // Stop the tone
+    digitalWrite(redPin, LOW);
+    digitalWrite(greenPin, HIGH);
+    digitalWrite(bluePin, LOW);
+
+    delay(500);
+  } else {
+    gasSensorData = 0;
+    Serial.println("Gas detection is disabled.");
+    Serial.print("Gas Sensor Data: ");
+    Serial.println(gasSensorData);
+    GAS_Value = gasSensorData;
+  }
+
+
+//Serial Monitor
+    // Serial.print("Gas Sensor Data: ");
+    // Serial.println(gasSensorData);
+    // Serial.print("Flame Value: ");
+    // Serial.println(digitalRead(FLAME_SENSOR_PIN));
+
+  delay(500);
+}
+
+
+void GASSiren() {
+  int tone1 = 1000; // First tone frequency
+  int tone2 = 1500; // Second tone frequency
+  int duration = 250; // Duration of each tone in milliseconds
+
+  for (int i = 0; i < 4; i++) { // Repeat the pattern to create a continuous siren
+    tone(BUZZER_PIN, tone1); // Play the first tone
+    delay(duration);         // Wait for the duration
+    tone(BUZZER_PIN, tone2); // Play the second tone
+    delay(duration);         // Wait for the duration
+  }
+  noTone(BUZZER_PIN); // Turn off the buzzer
+}
+
+void FireSiren_1() {
+  //digitalwrite(relay_pin,1);
+  int tone1 = 1200; // First tone frequency
+  int tone2 = 1800; // Second tone frequency
+  int duration = 500; // Duration of each tone in milliseconds
+
+  for (int i = 0; i < 3; i++) { // Repeat the pattern to create a continuous siren
+    tone(BUZZER_PIN, tone1); // Play the first tone
+    delay(duration);         // Wait for the duration
+    redLED_Blink(10, 50);     // blink 10 time,each for 50ms
+    tone(BUZZER_PIN, tone2); // Play the second tone
+    delay(duration);         // Wait for the duration
+    redLED_Blink(10, 50);
+  }
+  noTone(BUZZER_PIN); // Turn off the buzzer
+}
+
+void FireSiren_2() {
+  int lowFreq = 500;  // Low frequency for the wail
+  int highFreq = 2500; // High frequency for the wail
+  int stepDelay = 5;  // Delay between frequency changes
+
+  // Ramp up the frequency
+  for (int i = lowFreq; i < highFreq; i += 5) {
+    tone(BUZZER_PIN, i);
+    delay(stepDelay);
+  }
+  // Ramp down the frequency
+  for (int i = highFreq; i > lowFreq; i -= 5) {
+    tone(BUZZER_PIN, i);
+    delay(stepDelay);
+  }
+}
+
+void redLED_Blink(int blinkCount, int blinkDuration) {
+  for (int i = 0; i < blinkCount; i++) {
+    digitalWrite(redPin, HIGH);
+    delay(blinkDuration);
+    digitalWrite(redPin, LOW);
+    delay(blinkDuration);
+  }
+}
+
+void onButtonChange() {
+  // Add your code here to act upon Button change
+}
+
+/*
+  Since Sms is READ_WRITE variable, onSmsChange() is
+  executed every time a new value is received from IoT Cloud.
+*/
+void onSmsChange()  {
+  // Add your code here to act upon Sms change
+}
+/*
+  Since Message is READ_WRITE variable, onMessageChange() is
+  executed every time a new value is received from IoT Cloud.
+*/
+void onMessageChange()  {
+  // Add your code here to act upon Message change
+}
+/*
+  Since GASValue is READ_WRITE variable, onGASValueChange() is
+  executed every time a new value is received from IoT Cloud.
+*/
+void onGASValueChange()  {
+  // Add your code here to act upon GASValue change
+}
+/*
+  Since SmokeDetectionEnable is READ_WRITE variable, onSmokeDetectionEnableChange() is
+  executed every time a new value is received from IoT Cloud.
+*/
+void onSmokeDetectionEnableChange()  {
+  // Add your code here to act upon SmokeDetectionEnable change
+}
+/*
+  Since GasDetectionEnable is READ_WRITE variable, onGasDetectionEnableChange() is
+  executed every time a new value is received from IoT Cloud.
+*/
+void onGasDetectionEnableChange()  {
+  // Add your code here to act upon GasDetectionEnable change
+}
+
+
+
